@@ -10,8 +10,8 @@
 #include "benchmark.h"
 #include "quicksort.h"
 
-static int elapsed_microseconds(const struct timespec *start,
-                                const struct timespec *end, uint64_t *elapsed) {
+static int elapsed_microseconds(const struct timespec *start, const struct timespec *end,
+                                uint64_t *elapsed) {
     if (end->tv_sec < start->tv_sec ||
         (end->tv_sec == start->tv_sec && end->tv_nsec < start->tv_nsec)) {
         return 0;
@@ -56,8 +56,7 @@ int benchmark_median_us(const uint64_t *samples, int count, uint64_t *median) {
 
 BenchmarkResult measure_sort(int **arrays, int length, const char *variant) {
     BenchmarkResult result = {0};
-    if (arrays == NULL || length < 1 || length > BENCHMARK_MAX_LENGTH ||
-        variant == NULL) {
+    if (arrays == NULL || length < 1 || length > BENCHMARK_MAX_LENGTH || variant == NULL) {
         return result;
     }
     uint64_t elapsed[BENCHMARK_TRIALS];
@@ -74,8 +73,7 @@ BenchmarkResult measure_sort(int **arrays, int length, const char *variant) {
         if (clock_gettime(CLOCK_MONOTONIC, &start) != 0) {
             return result;
         }
-        int64_t trial_comparisons = sort_variant(arrays[i], length, variant,
-                                                 &trial_movements);
+        int64_t trial_comparisons = sort_variant(arrays[i], length, variant, &trial_movements);
         if (trial_comparisons < 0 || clock_gettime(CLOCK_MONOTONIC, &end) != 0 ||
             !elapsed_microseconds(&start, &end, &elapsed[i])) {
             return result;

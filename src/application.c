@@ -24,8 +24,7 @@ int run_application(int argc, char *argv[]) {
     }
     srand(options.seed);
 
-    int **arrays = create_input_arrays(options.order, options.length,
-                                       BENCHMARK_TRIALS);
+    int **arrays = create_input_arrays(options.order, options.length, BENCHMARK_TRIALS);
     if (arrays == NULL) {
         fputs("Could not allocate input arrays.\n", stderr);
         return 1;
@@ -41,16 +40,14 @@ int run_application(int argc, char *argv[]) {
         }
     }
 
-    BenchmarkResult result = measure_sort(arrays, options.length,
-                                          options.variant_code);
+    BenchmarkResult result = measure_sort(arrays, options.length, options.variant_code);
     if (!result.success) {
         fputs("Could not complete the benchmark.\n", stderr);
         free_input_arrays(originals, BENCHMARK_TRIALS);
         free_input_arrays(arrays, BENCHMARK_TRIALS);
         return 1;
     }
-    int output_ok = print_result(options.variant_name, options.order_name,
-                                 options.length, &result);
+    int output_ok = print_result(options.variant_name, options.order_name, options.length, &result);
     if (output_ok && originals != NULL) {
         output_ok = print_original_arrays(originals, options.length);
     }

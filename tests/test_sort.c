@@ -60,8 +60,7 @@ static int check_large_case(const char *variant, int length, int pattern) {
 
 static int check_pivot_selection(void) {
     const int permutations[6][3] = {
-        {1, 2, 3}, {1, 3, 2}, {2, 1, 3},
-        {2, 3, 1}, {3, 1, 2}, {3, 2, 1},
+        {1, 2, 3}, {1, 3, 2}, {2, 1, 3}, {2, 3, 1}, {3, 1, 2}, {3, 2, 1},
     };
     for (int i = 0; i < 6; ++i) {
         if (select_pivot(permutations[i], 0, 2, PIVOT_MEDIAN_OF_THREE) != 2) {
@@ -74,6 +73,35 @@ static int check_pivot_selection(void) {
            select_pivot(values, 1, 3, PIVOT_MEDIAN_OF_THREE) == 5;
 }
 
+static int check_partition_boundaries(void) {
+    int values[] = {INT_MIN, 9, 1, 5, 3, 7, INT_MAX};
+    int left_cursor = 0;
+    int right_cursor = 0;
+    int64_t movements = 0;
+    int comparisons =
+        partition_range(1, 5, &left_cursor, &right_cursor, values, PIVOT_MIDDLE, &movements);
+    if (comparisons <= 0 || movements < 0 || movements % 3 != 0 || values[0] != INT_MIN ||
+        values[6] != INT_MAX || left_cursor <= right_cursor) {
+        return 0;
+    }
+    for (int i = 1; i <= right_cursor; ++i) {
+        if (values[i] > 5) {
+            return 0;
+        }
+    }
+    for (int i = left_cursor; i <= 5; ++i) {
+        if (values[i] < 5) {
+            return 0;
+        }
+    }
+
+    int equal[] = {7, 7, 7};
+    movements = 0;
+    comparisons =
+        partition_range(0, 2, &left_cursor, &right_cursor, equal, PIVOT_MIDDLE, &movements);
+    return comparisons == 4 && movements == 6 && left_cursor == 2 && right_cursor == 0;
+}
+
 static int check_stack(void) {
     RangeStack stack;
     if (!stack_init(&stack)) {
@@ -81,14 +109,13 @@ static int check_stack(void) {
     }
     SortRange first = {.left = 1, .right = 5};
     SortRange second = {.left = 10, .right = 20};
-    int passed = stack_is_empty(&stack) && stack_size(&stack) == 0 &&
-                 stack_push(&stack, first) && stack_push(&stack, second) &&
-                 !stack_is_empty(&stack) && stack_size(&stack) == 2;
+    int passed = stack_is_empty(&stack) && stack_size(&stack) == 0 && stack_push(&stack, first) &&
+                 stack_push(&stack, second) && !stack_is_empty(&stack) && stack_size(&stack) == 2;
     SortRange actual = {.left = -1, .right = -1};
     if (passed) {
         stack_pop(&stack, &actual);
-        passed = actual.left == second.left && actual.right == second.right &&
-                 stack_size(&stack) == 1;
+        passed =
+            actual.left == second.left && actual.right == second.right && stack_size(&stack) == 1;
         stack_pop(&stack, &actual);
         passed &= actual.left == first.left && actual.right == first.right &&
                   stack_is_empty(&stack) && stack_size(&stack) == 0;
@@ -102,11 +129,11 @@ static int check_stack(void) {
 int main(void) {
     const char *const variants[] = {"QC", "QM3", "QPE", "QI1", "QI5", "QI10", "QNR"};
     const int extremes[] = {INT_MAX, 0, INT_MIN, 0, -1, INT_MAX, INT_MIN, 1};
-    const int cutoff_lengths[] = {9, 10, 11, 19, 20, 21, 99, 100, 101,
-                                  199, 200, 201, 999, 1000, 1001};
+    const int cutoff_lengths[] = {9,   10,  11,  19,  20,  21,   99,  100,
+                                  101, 199, 200, 201, 999, 1000, 1001};
 
-    if (!check_pivot_selection() || !check_stack()) {
-        fputs("Pivot or stack test failed\n", stderr);
+    if (!check_pivot_selection() || !check_partition_boundaries() || !check_stack()) {
+        fputs("Pivot, partition, or stack test failed\n", stderr);
         return 1;
     }
 
@@ -130,8 +157,7 @@ int main(void) {
                     digits /= 3;
                 }
                 if (!check_case(variants[v], input, length)) {
-                    fprintf(stderr, "%s failed length %d, case %d\n", variants[v],
-                            length, mask);
+                    fprintf(stderr, "%s failed length %d, case %d\n", variants[v], length, mask);
                     return 1;
                 }
             }

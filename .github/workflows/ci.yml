@@ -1,0 +1,54 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  tests:
+    name: Tests (${{ matrix.compiler }})
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        compiler: [gcc, clang-18]
+    steps:
+      - uses: actions/checkout@v6
+      - name: Install compiler
+        timeout-minutes: 5
+        run: sudo apt-get update && sudo apt-get install -y clang-18
+      - name: Build and test
+        timeout-minutes: 8
+        run: make CC=${{ matrix.compiler }} test
+      - name: AddressSanitizer and UndefinedBehaviorSanitizer
+        timeout-minutes: 10
+        run: make CC=${{ matrix.compiler }} ASAN_OPTIONS=detect_leaks=1 sanitize
+
+  quality:
+    name: Formatting, analysis, and coverage
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v6
+      - name: Install formatter
+        timeout-minutes: 5
+        run: sudo apt-get update && sudo apt-get install -y clang-format-18
+      - name: Check formatting and whitespace
+        timeout-minutes: 2
+        run: |
+          make check-format
+          if git grep -n '[[:blank:]]$' -- Makefile .github scripts src include tests; then
+            echo "Trailing whitespace found" >&2
+            exit 1
+          fi
+      - name: GCC static analysis
+        timeout-minutes: 3
+        run: make analyze
+      - name: Coverage suite
+        timeout-minutes: 5
+        run: make coverage

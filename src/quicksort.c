@@ -36,21 +36,20 @@ static int64_t sort_recursive(int left, int right, int *values, PivotStrategy st
 
         int i;
         int j;
-        comparisons += partition_range(left, right, &i, &j, values, strategy,
-                                       movements);
+        comparisons += partition_range(left, right, &i, &j, values, strategy, movements);
         int left_length = j >= left ? j - left + 1 : 0;
         int right_length = i <= right ? right - i + 1 : 0;
 
         if (left_length < right_length) {
             if (left_length > 1) {
-                comparisons += sort_recursive(left, j, values, strategy, movements,
-                                              insertion_cutoff);
+                comparisons +=
+                    sort_recursive(left, j, values, strategy, movements, insertion_cutoff);
             }
             left = i;
         } else {
             if (right_length > 1) {
-                comparisons += sort_recursive(i, right, values, strategy, movements,
-                                              insertion_cutoff);
+                comparisons +=
+                    sort_recursive(i, right, values, strategy, movements, insertion_cutoff);
             }
             right = j;
         }
@@ -73,8 +72,7 @@ static int64_t sort_iterative(int *values, int length, int64_t *movements) {
         while (left < right) {
             int i;
             int j;
-            comparisons += partition_range(left, right, &i, &j, values,
-                                           PIVOT_MIDDLE, movements);
+            comparisons += partition_range(left, right, &i, &j, values, PIVOT_MIDDLE, movements);
             int left_length = j >= left ? j - left + 1 : 0;
             int right_length = i <= right ? right - i + 1 : 0;
             SortRange deferred;
@@ -108,10 +106,8 @@ static int64_t sort_iterative(int *values, int length, int64_t *movements) {
     return comparisons;
 }
 
-int64_t sort_variant(int *values, int length, const char *variant,
-                     int64_t *movements) {
-    if (length < 0 || variant == NULL || movements == NULL ||
-        (length > 0 && values == NULL)) {
+int64_t sort_variant(int *values, int length, const char *variant, int64_t *movements) {
+    if (length < 0 || variant == NULL || movements == NULL || (length > 0 && values == NULL)) {
         return -1;
     }
     if (length == 0) {
@@ -128,16 +124,13 @@ int64_t sort_variant(int *values, int length, const char *variant,
         return sort_recursive(0, last, values, PIVOT_FIRST, movements, 0);
     }
     if (strcmp(variant, "QI1") == 0) {
-        return sort_recursive(0, last, values, PIVOT_MEDIAN_OF_THREE, movements,
-                              length / 100);
+        return sort_recursive(0, last, values, PIVOT_MEDIAN_OF_THREE, movements, length / 100);
     }
     if (strcmp(variant, "QI5") == 0) {
-        return sort_recursive(0, last, values, PIVOT_MEDIAN_OF_THREE, movements,
-                              length / 20);
+        return sort_recursive(0, last, values, PIVOT_MEDIAN_OF_THREE, movements, length / 20);
     }
     if (strcmp(variant, "QI10") == 0) {
-        return sort_recursive(0, last, values, PIVOT_MEDIAN_OF_THREE, movements,
-                              length / 10);
+        return sort_recursive(0, last, values, PIVOT_MEDIAN_OF_THREE, movements, length / 10);
     }
     if (strcmp(variant, "QNR") == 0) {
         return sort_iterative(values, length, movements);
