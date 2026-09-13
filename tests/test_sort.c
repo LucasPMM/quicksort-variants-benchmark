@@ -22,8 +22,20 @@ static int check_case(const char *variant, const int *input, int length) {
 
     int64_t movements = 0;
     int64_t comparisons = sort_variant(actual, length, variant, &movements);
-    return comparisons >= 0 && movements >= 0 &&
-           memcmp(actual, expected, (size_t)length * sizeof *actual) == 0;
+    if (comparisons < 0 || movements < 0 ||
+        memcmp(actual, expected, (size_t)length * sizeof *actual) != 0) {
+        return 0;
+    }
+    if (strcmp(variant, "QNR") == 0) {
+        int recursive[8] = {0};
+        memcpy(recursive, input, (size_t)length * sizeof *recursive);
+        int64_t recursive_movements = 0;
+        int64_t recursive_comparisons = sort_variant(recursive, length, "QC", &recursive_movements);
+        /* Both middle-pivot variants must do the same work on the same input. */
+        return recursive_comparisons == comparisons && recursive_movements == movements &&
+               memcmp(recursive, actual, (size_t)length * sizeof *actual) == 0;
+    }
+    return 1;
 }
 
 static int check_large_case(const char *variant, int length, int pattern) {
