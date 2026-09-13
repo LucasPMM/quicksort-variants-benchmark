@@ -3,8 +3,8 @@
 
 #include "benchmark.h"
 
-void print_result(const char *variant, const char *order, int length,
-                  const BenchmarkResult *result);
-void print_array(const int *values, int length);
+int print_result(const char *variant, const char *order, int length,
+                 const BenchmarkResult *result);
+int print_array(const int *values, int length);
 
 #endif

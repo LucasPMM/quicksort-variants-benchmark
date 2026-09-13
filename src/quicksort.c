@@ -4,12 +4,12 @@
 #include "quicksort.h"
 #include "stack.h"
 
-static long insertion_sort(int *values, int left, int right, long *movements) {
-    long comparisons = 0;
+static int64_t insertion_sort(int *values, int left, int right, int64_t *movements) {
+    int64_t comparisons = 0;
     for (int i = left; i <= right; ++i) {
         int key = values[i];
         int j = i - 1;
-        while (j >= 0) {
+        while (j >= left) {
             ++comparisons;
             if (key >= values[j]) {
                 break;
@@ -24,94 +24,97 @@ static long insertion_sort(int *values, int left, int right, long *movements) {
     return comparisons;
 }
 
-/* Hybrid variants switch each remaining partition to insertion sort at the cutoff. */
-static long sort_recursive(int left, int right, int *values, PivotStrategy strategy,
-                           long *movements, int insertion_cutoff) {
-    long comparisons = 0;
-    int i;
-    int j;
+/* Recurse on the smaller partition to bound call-stack depth even for QPE. */
+static int64_t sort_recursive(int left, int right, int *values, PivotStrategy strategy,
+                              int64_t *movements, int insertion_cutoff) {
+    int64_t comparisons = 0;
+    while (left < right) {
+        if (insertion_cutoff > 0 && right - left + 1 <= insertion_cutoff) {
+            comparisons += insertion_sort(values, left, right, movements);
+            break;
+        }
 
-    if (insertion_cutoff == 0) {
-        if (strategy == PIVOT_MEDIAN_OF_THREE && left - right <= 2) {
-            strategy = PIVOT_MIDDLE;
+        int i;
+        int j;
+        comparisons += partition_range(left, right, &i, &j, values, strategy,
+                                       movements);
+        int left_length = j >= left ? j - left + 1 : 0;
+        int right_length = i <= right ? right - i + 1 : 0;
+
+        if (left_length < right_length) {
+            if (left_length > 1) {
+                comparisons += sort_recursive(left, j, values, strategy, movements,
+                                              insertion_cutoff);
+            }
+            left = i;
+        } else {
+            if (right_length > 1) {
+                comparisons += sort_recursive(i, right, values, strategy, movements,
+                                              insertion_cutoff);
+            }
+            right = j;
         }
-        comparisons = partition_range(left, right, &i, &j, values, strategy,
-                                      movements);
-        if (left < j) {
-            comparisons += sort_recursive(left, j, values, strategy, movements,
-                                          insertion_cutoff);
-        }
-        if (i < right) {
-            comparisons += sort_recursive(i, right, values, strategy, movements,
-                                          insertion_cutoff);
-        }
-    } else if (right - left > insertion_cutoff) {
-        if (strategy == PIVOT_MEDIAN_OF_THREE && right - left <= 2) {
-            strategy = PIVOT_MIDDLE;
-        }
-        comparisons = partition_range(left, right, &i, &j, values, strategy,
-                                      movements);
-        comparisons += sort_recursive(left, j, values, strategy, movements,
-                                      insertion_cutoff);
-        comparisons += sort_recursive(i, right, values, strategy, movements,
-                                      insertion_cutoff);
-    } else {
-        comparisons = insertion_sort(values, left, right, movements);
     }
     return comparisons;
 }
 
 /* Push the larger side and work on the smaller side before returning to the stack. */
-static long sort_iterative(int *values, int length, long *movements) {
+static int64_t sort_iterative(int *values, int length, int64_t *movements) {
     int left = 0;
     int right = length - 1;
-    int i;
-    int j;
-    long comparisons = 0;
+    int64_t comparisons = 0;
     RangeStack stack;
-    SortRange range = {.left = left, .right = right};
 
     if (!stack_init(&stack)) {
         return -1;
     }
-    if (!stack_push(&stack, range)) {
-        stack_destroy(&stack);
-        return -1;
-    }
-    do {
-        if (right > left) {
+
+    for (;;) {
+        while (left < right) {
+            int i;
+            int j;
             comparisons += partition_range(left, right, &i, &j, values,
                                            PIVOT_MIDDLE, movements);
-            if (j - left > right - i) {
-                range.left = left;
-                range.right = j;
-                if (!stack_push(&stack, range)) {
-                    stack_destroy(&stack);
-                    return -1;
-                }
-                left = i;
-            } else {
-                range.left = i;
-                range.right = right;
-                if (!stack_push(&stack, range)) {
+            int left_length = j >= left ? j - left + 1 : 0;
+            int right_length = i <= right ? right - i + 1 : 0;
+            SortRange deferred;
+
+            if (left_length < right_length) {
+                deferred = (SortRange){.left = i, .right = right};
+                if (right_length > 1 && !stack_push(&stack, deferred)) {
                     stack_destroy(&stack);
                     return -1;
                 }
                 right = j;
+            } else {
+                deferred = (SortRange){.left = left, .right = j};
+                if (left_length > 1 && !stack_push(&stack, deferred)) {
+                    stack_destroy(&stack);
+                    return -1;
+                }
+                left = i;
             }
-        } else {
-            stack_pop(&stack, &range);
-            left = range.left;
-            right = range.right;
         }
-    } while (!stack_is_empty(&stack));
+        if (stack_is_empty(&stack)) {
+            break;
+        }
+        SortRange next;
+        stack_pop(&stack, &next);
+        left = next.left;
+        right = next.right;
+    }
 
     stack_destroy(&stack);
     return comparisons;
 }
 
-long sort_variant(int *values, int length, const char *variant, long *movements) {
-    if (length <= 0) {
+int64_t sort_variant(int *values, int length, const char *variant,
+                     int64_t *movements) {
+    if (length < 0 || variant == NULL || movements == NULL ||
+        (length > 0 && values == NULL)) {
+        return -1;
+    }
+    if (length == 0) {
         return 0;
     }
     int last = length - 1;
@@ -126,18 +129,18 @@ long sort_variant(int *values, int length, const char *variant, long *movements)
     }
     if (strcmp(variant, "QI1") == 0) {
         return sort_recursive(0, last, values, PIVOT_MEDIAN_OF_THREE, movements,
-                              last / 100);
+                              length / 100);
     }
     if (strcmp(variant, "QI5") == 0) {
         return sort_recursive(0, last, values, PIVOT_MEDIAN_OF_THREE, movements,
-                              last / 20);
+                              length / 20);
     }
     if (strcmp(variant, "QI10") == 0) {
         return sort_recursive(0, last, values, PIVOT_MEDIAN_OF_THREE, movements,
-                              last / 10);
+                              length / 10);
     }
     if (strcmp(variant, "QNR") == 0) {
         return sort_iterative(values, length, movements);
     }
-    return 0;
+    return -1;
 }
