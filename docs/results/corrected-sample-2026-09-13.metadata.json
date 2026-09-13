@@ -1,0 +1,16 @@
+{
+  "source": "corrected implementation, bounded sample",
+  "started_utc": "2026-09-13T14:41:38.528641+00:00",
+  "finished_utc": "2026-09-13T14:42:35.270818+00:00",
+  "git_commit": "88948f0ca7f6e431512e4ae85a22a39a26b609cc",
+  "host_os": "Linux-7.0.0-30-generic-x86_64-with-glibc2.39",
+  "cpu_model": "AMD Ryzen 5 3600 6-Core Processor",
+  "compiler": "gcc (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0",
+  "cflags": "-O3",
+  "seed": 42,
+  "trials_per_case": 20,
+  "time_unit": "microseconds",
+  "random_generator": "(rand() % size) * 10 + 1; libc-dependent stream",
+  "cases": 59,
+  "selection": "50k, 100k, 200k for all variant/order pairs, except ordered first-pivot above 50k"
+}

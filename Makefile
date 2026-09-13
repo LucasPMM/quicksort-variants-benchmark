@@ -54,8 +54,9 @@ FORMAT_SOURCES := $(SOURCES) $(HEADERS) tests/test_sort.c \
 	tests/test_benchmark.c tests/test_failures.c
 BENCHMARK_OUTPUT ?= build/benchmark-matrix.csv
 BENCHMARK_SEED ?= 42
+FIGURES_DIR ?= docs/figures
 
-.PHONY: all test sanitize coverage analyze format check-format benchmark-matrix clean
+.PHONY: all test sanitize coverage analyze format check-format benchmark-matrix figures clean
 
 all: $(TARGET)
 
@@ -143,6 +144,7 @@ test: $(TARGET) $(SORT_TEST) $(BENCHMARK_TEST) $(FAILURE_TEST)
 	$(FAILURE_TEST)
 	sh tests/run_smoke.sh ./$(TARGET)
 	python3 tests/test_benchmark_csv.py
+	python3 tests/test_evidence.py
 
 sanitize: $(SANITIZER_DIR)/$(TARGET) $(SANITIZER_SORT_TEST) \
 	$(SANITIZER_BENCHMARK_TEST) $(SANITIZER_FAILURE_TEST)
@@ -158,6 +160,7 @@ coverage: $(COVERAGE_DIR)/$(TARGET) $(COVERAGE_SORT_TEST) \
 	$(COVERAGE_FAILURE_TEST)
 	sh tests/run_smoke.sh ./$(COVERAGE_DIR)/$(TARGET)
 	python3 tests/test_benchmark_csv.py
+	python3 tests/test_evidence.py
 	@mkdir -p $(COVERAGE_DIR)/reports
 	$(GCOV) -b -c $(COVERAGE_DIR)/*.gcda > $(COVERAGE_DIR)/summary.txt
 	@mv ./*.gcov $(COVERAGE_DIR)/reports/
@@ -173,6 +176,9 @@ check-format:
 
 benchmark-matrix: $(TARGET)
 	sh scripts/run_benchmark_matrix.sh ./$(TARGET) "$(BENCHMARK_OUTPUT)" "$(BENCHMARK_SEED)"
+
+figures:
+	python3 scripts/plot_results.py --output-dir "$(FIGURES_DIR)"
 
 clean:
 	rm -rf build $(TARGET)

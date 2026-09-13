@@ -12,7 +12,7 @@ jobs:
   tests:
     name: Tests (${{ matrix.compiler }})
     runs-on: ubuntu-24.04
-    timeout-minutes: 20
+    timeout-minutes: 25
     strategy:
       fail-fast: false
       matrix:
@@ -32,12 +32,12 @@ jobs:
   quality:
     name: Formatting, analysis, and coverage
     runs-on: ubuntu-24.04
-    timeout-minutes: 15
+    timeout-minutes: 25
     steps:
       - uses: actions/checkout@v6
-      - name: Install formatter
+      - name: Install formatter and plotting dependency
         timeout-minutes: 5
-        run: sudo apt-get update && sudo apt-get install -y clang-format-18
+        run: sudo apt-get update && sudo apt-get install -y clang-format-18 python3-matplotlib
       - name: Check formatting and whitespace
         timeout-minutes: 2
         run: |
@@ -52,3 +52,8 @@ jobs:
       - name: Coverage suite
         timeout-minutes: 5
         run: make coverage
+      - name: Generate evidence figures
+        timeout-minutes: 5
+        run: |
+          python3 tests/test_plot_results.py
+          make FIGURES_DIR=build/figures figures
