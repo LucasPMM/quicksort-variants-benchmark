@@ -39,6 +39,10 @@ COVERAGE_SORT_TEST := $(COVERAGE_DIR)/sort-tests
 BENCHMARK_TEST := build/tests/benchmark-tests
 SANITIZER_BENCHMARK_TEST := $(SANITIZER_DIR)/benchmark-tests
 COVERAGE_BENCHMARK_TEST := $(COVERAGE_DIR)/benchmark-tests
+FAILURE_TEST := build/tests/failure-tests
+SANITIZER_FAILURE_TEST := $(SANITIZER_DIR)/failure-tests
+COVERAGE_FAILURE_TEST := $(COVERAGE_DIR)/failure-tests
+WRAP_FLAGS := -Wl,--wrap=malloc -Wl,--wrap=calloc -Wl,--wrap=clock_gettime
 BENCHMARK_TEST_OBJECTS := $(RELEASE_DIR)/benchmark.o $(RELEASE_DIR)/input.o \
 	$(SORT_TEST_OBJECTS)
 SANITIZER_BENCHMARK_TEST_OBJECTS := $(SANITIZER_DIR)/benchmark.o \
@@ -46,9 +50,12 @@ SANITIZER_BENCHMARK_TEST_OBJECTS := $(SANITIZER_DIR)/benchmark.o \
 COVERAGE_BENCHMARK_TEST_OBJECTS := $(COVERAGE_DIR)/benchmark.o \
 	$(COVERAGE_DIR)/input.o $(COVERAGE_SORT_TEST_OBJECTS)
 ANALYZER_TARGET := build/analyzer/sort
-FORMAT_SOURCES := $(SOURCES) $(HEADERS) tests/test_sort.c tests/test_benchmark.c
+FORMAT_SOURCES := $(SOURCES) $(HEADERS) tests/test_sort.c \
+	tests/test_benchmark.c tests/test_failures.c
+BENCHMARK_OUTPUT ?= build/benchmark-matrix.csv
+BENCHMARK_SEED ?= 42
 
-.PHONY: all test sanitize coverage analyze format check-format clean
+.PHONY: all test sanitize coverage analyze format check-format benchmark-matrix clean
 
 all: $(TARGET)
 
@@ -108,28 +115,49 @@ $(COVERAGE_BENCHMARK_TEST): tests/test_benchmark.c \
 	$(COVERAGE_CC) $(CPPFLAGS) -Iinclude $(STANDARD_FLAGS) $(WARNING_FLAGS) \
 		$(COVERAGE_FLAGS) $^ $(LDFLAGS) $(LDLIBS) -o $@
 
+$(FAILURE_TEST): tests/test_failures.c $(BENCHMARK_TEST_OBJECTS)
+	@mkdir -p $(@D)
+	$(CC) $(CPPFLAGS) -Iinclude $(STANDARD_FLAGS) $(WARNING_FLAGS) \
+		$(CFLAGS) $^ $(WRAP_FLAGS) $(LDFLAGS) $(LDLIBS) -o $@
+
+$(SANITIZER_FAILURE_TEST): tests/test_failures.c \
+	$(SANITIZER_BENCHMARK_TEST_OBJECTS)
+	@mkdir -p $(@D)
+	$(CC) $(CPPFLAGS) -Iinclude $(STANDARD_FLAGS) $(WARNING_FLAGS) \
+		$(SANITIZER_FLAGS) $^ $(WRAP_FLAGS) $(LDFLAGS) $(LDLIBS) -o $@
+
+$(COVERAGE_FAILURE_TEST): tests/test_failures.c \
+	$(COVERAGE_BENCHMARK_TEST_OBJECTS)
+	@mkdir -p $(@D)
+	$(COVERAGE_CC) $(CPPFLAGS) -Iinclude $(STANDARD_FLAGS) $(WARNING_FLAGS) \
+		$(COVERAGE_FLAGS) $^ $(WRAP_FLAGS) $(LDFLAGS) $(LDLIBS) -o $@
+
 $(ANALYZER_TARGET): $(SOURCES) $(HEADERS)
 	@mkdir -p $(@D)
 	$(ANALYZER_CC) $(CPPFLAGS) -Iinclude $(STANDARD_FLAGS) $(WARNING_FLAGS) \
 		$(ANALYZER_FLAGS) $(SOURCES) $(LDFLAGS) $(LDLIBS) -o $@
 
-# The broader boundary, statistics, and integration suite arrives in phase 4.
-test: $(TARGET) $(SORT_TEST) $(BENCHMARK_TEST)
+test: $(TARGET) $(SORT_TEST) $(BENCHMARK_TEST) $(FAILURE_TEST)
 	$(SORT_TEST)
 	$(BENCHMARK_TEST)
+	$(FAILURE_TEST)
 	sh tests/run_smoke.sh ./$(TARGET)
+	python3 tests/test_benchmark_csv.py
 
 sanitize: $(SANITIZER_DIR)/$(TARGET) $(SANITIZER_SORT_TEST) \
-	$(SANITIZER_BENCHMARK_TEST)
+	$(SANITIZER_BENCHMARK_TEST) $(SANITIZER_FAILURE_TEST)
 	ASAN_OPTIONS=$(ASAN_OPTIONS) $(SANITIZER_SORT_TEST)
 	ASAN_OPTIONS=$(ASAN_OPTIONS) $(SANITIZER_BENCHMARK_TEST)
+	ASAN_OPTIONS=$(ASAN_OPTIONS) $(SANITIZER_FAILURE_TEST)
 	ASAN_OPTIONS=$(ASAN_OPTIONS) sh tests/run_smoke.sh ./$(SANITIZER_DIR)/$(TARGET)
 
 coverage: $(COVERAGE_DIR)/$(TARGET) $(COVERAGE_SORT_TEST) \
-	$(COVERAGE_BENCHMARK_TEST)
+	$(COVERAGE_BENCHMARK_TEST) $(COVERAGE_FAILURE_TEST)
 	$(COVERAGE_SORT_TEST)
 	$(COVERAGE_BENCHMARK_TEST)
+	$(COVERAGE_FAILURE_TEST)
 	sh tests/run_smoke.sh ./$(COVERAGE_DIR)/$(TARGET)
+	python3 tests/test_benchmark_csv.py
 	@mkdir -p $(COVERAGE_DIR)/reports
 	$(GCOV) -b -c $(COVERAGE_DIR)/*.gcda > $(COVERAGE_DIR)/summary.txt
 	@mv ./*.gcov $(COVERAGE_DIR)/reports/
@@ -142,6 +170,9 @@ format:
 
 check-format:
 	$(CLANG_FORMAT) --dry-run --Werror $(FORMAT_SOURCES)
+
+benchmark-matrix: $(TARGET)
+	sh scripts/run_benchmark_matrix.sh ./$(TARGET) "$(BENCHMARK_OUTPUT)" "$(BENCHMARK_SEED)"
 
 clean:
 	rm -rf build $(TARGET)

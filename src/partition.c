@@ -31,8 +31,8 @@ int select_pivot(const int *values, int left, int right, PivotStrategy strategy)
     return middle;
 }
 
-int partition_range(int left, int right, int *i, int *j, int *values,
-                    PivotStrategy strategy, int64_t *movements) {
+int partition_range(int left, int right, int *i, int *j, int *values, PivotStrategy strategy,
+                    int64_t *movements) {
     int comparisons = 0;
     int pivot = select_pivot(values, left, right, strategy);
     *i = left;

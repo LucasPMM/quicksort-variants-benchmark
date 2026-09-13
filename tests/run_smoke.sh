@@ -2,9 +2,11 @@
 set -eu
 
 binary=$1
+error_file=$(mktemp)
+trap 'rm -f "$error_file"' EXIT HUP INT TERM
 
 reject() {
-    if output=$("$binary" "$@" 2>/dev/null); then
+    if output=$("$binary" "$@" 2>"$error_file"); then
         echo "Invalid command was accepted: $*" >&2
         exit 1
     fi
@@ -12,24 +14,50 @@ reject() {
         echo "Invalid command wrote to stdout: $*" >&2
         exit 1
     fi
+    if ! grep -Eq 'Usage:|Invalid command-line arguments\.' "$error_file"; then
+        echo "Invalid command did not explain the error: $*" >&2
+        exit 1
+    fi
 }
 
 for variant in QC QM3 QPE QI1 QI5 QI10 QNR; do
-    output=$("$binary" "$variant" OrdC 5)
+    for order in OrdC OrdD Ale; do
+        output=$("$binary" "$variant" "$order" 5 --seed 42)
+        printf '%s\n' "$output" | awk -v variant="$variant" -v order="$order" '
+            NF != 6 || $1 != variant || $2 != order || $3 != 5 ||
+            $4 !~ /^[0-9]+$/ || $5 !~ /^[0-9]+$/ || $6 !~ /^[0-9]+$/ {
+                exit 1
+            }
+            END { if (NR != 1) exit 1 }
+        '
+    done
+done
+
+for variant in middle-pivot median-of-three first-pivot hybrid-1 hybrid-5 hybrid-10 iterative; do
+    for order in ascending descending random; do
+        output=$("$binary" "$variant" "$order" 5 --seed 42)
+        printf '%s\n' "$output" | awk -v variant="$variant" -v order="$order" '
+            NF != 6 || $1 != variant || $2 != order || $3 != 5 ||
+            $4 !~ /^[0-9]+$/ || $5 !~ /^[0-9]+$/ || $6 !~ /^[0-9]+$/ {
+                exit 1
+            }
+            END { if (NR != 1) exit 1 }
+        '
+    done
+    output=$("$binary" "$variant" ascending 1 --seed 0)
     printf '%s\n' "$output" | awk -v variant="$variant" '
-        NF != 6 || $1 != variant || $2 != "OrdC" || $3 != 5 ||
-        $4 !~ /^[0-9]+$/ || $5 !~ /^[0-9]+$/ || $6 !~ /^[0-9]+$/ {
-            exit 1
-        }
+        NF != 6 || $1 != variant || $2 != "ascending" || $3 != 1 { exit 1 }
+        END { if (NR != 1) exit 1 }
     '
 done
 
-for order in ascending descending random; do
-    output=$("$binary" middle-pivot "$order" 5 --seed 42)
-    printf '%s\n' "$output" | awk -v order="$order" '
-        NF != 6 || $1 != "middle-pivot" || $2 != order || $3 != 5 { exit 1 }
-    '
-done
+# Exercise the documented maximum without running the quadratic first-pivot case in CI.
+output=$("$binary" iterative ascending 500000 --seed 42)
+printf '%s\n' "$output" | awk '
+    NF != 6 || $1 != "iterative" || $2 != "ascending" || $3 != 500000 ||
+    $4 !~ /^[0-9]+$/ || $5 !~ /^[0-9]+$/ || $6 !~ /^[0-9]+$/ { exit 1 }
+    END { if (NR != 1) exit 1 }
+'
 
 help=$("$binary" --help)
 case "$help" in
@@ -70,6 +98,8 @@ reject QC OrdC 5 --seed 999999999999999999999999
 reject QC OrdC 5 --seed 1 --seed 2
 reject QC OrdC 5 -p -p
 reject QC OrdC 5 --unknown
+reject QC OrdC 5 --help
+reject QC OrdC 5 --seed 1 extra
 
 if [ -e /dev/full ] && "$binary" QC OrdC 3 >/dev/full 2>/dev/null; then
     echo "Output failure was not reported" >&2

@@ -19,13 +19,11 @@ static int check_median(void) {
         return 0;
     }
     if (!benchmark_median_us(even, 4, &result) || result != 2 ||
-        !benchmark_median_us(extremes, 2, &result) ||
-        result != UINT64_MAX - 1 ||
+        !benchmark_median_us(extremes, 2, &result) || result != UINT64_MAX - 1 ||
         !benchmark_median_us(zeros, BENCHMARK_TRIALS, &result) || result != 0 ||
         benchmark_median_us(odd, 0, &result) ||
         benchmark_median_us(odd, BENCHMARK_TRIALS + 1, &result) ||
-        benchmark_median_us(NULL, 1, &result) ||
-        benchmark_median_us(odd, 1, NULL)) {
+        benchmark_median_us(NULL, 1, &result) || benchmark_median_us(odd, 1, NULL)) {
         return 0;
     }
     return 1;
@@ -45,6 +43,8 @@ static int check_inputs(void) {
         }
         ascending[0][0] = 99;
         passed &= copy[0][0] == 1;
+        int *incomplete[] = {ascending[0], NULL};
+        passed &= copy_input_arrays(incomplete, 10, 2) == NULL;
     }
     free_input_arrays(ascending, 2);
     free_input_arrays(descending, 2);
@@ -86,8 +86,7 @@ static int check_measurement(void) {
         arrays[trial][1] = 1;
     }
     BenchmarkResult result = measure_sort(arrays, 2, "QC");
-    int passed = result.success && result.mean_comparisons == 2.5 &&
-                 result.mean_movements == 3;
+    int passed = result.success && result.mean_comparisons == 2.5 && result.mean_movements == 3;
     for (int trial = 0; trial < BENCHMARK_TRIALS; ++trial) {
         for (int i = 0; i < 2; ++i) {
             passed &= arrays[trial][i] == i + 1;

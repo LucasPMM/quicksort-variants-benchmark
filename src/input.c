@@ -5,8 +5,7 @@
 #include "input.h"
 
 static int valid_shape(int length, int count) {
-    return length > 0 && length <= BENCHMARK_MAX_LENGTH &&
-           count > 0 && count <= BENCHMARK_TRIALS;
+    return length > 0 && length <= BENCHMARK_MAX_LENGTH && count > 0 && count <= BENCHMARK_TRIALS;
 }
 
 void free_input_arrays(int **arrays, int count) {

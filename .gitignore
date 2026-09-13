@@ -1,5 +1,7 @@
 sort
 build/
+__pycache__/
+*.pyc
 *.gcov
 .vscode
 in.txt
