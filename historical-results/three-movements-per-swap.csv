@@ -1,4 +1,4 @@
-Tipo Quicksort, Tipo Vetor, Tamanho, Média de Comparações, Média de Movimentações, Mediana do Tempo (ms)
+variant,input_order,size,mean_comparisons,mean_movements,median_time_us
 QC, Ale, 50000, 1043875, 598029, 4174
 QC, Ale, 100000, 2209585, 1268354, 9334
 QC, Ale, 150000, 3484752, 1955589, 14234
