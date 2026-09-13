@@ -1,9 +1,10 @@
 sort
+build/
+*.gcov
 .vscode
 in.txt
 out.txt
 valgrind-out.txt
-src/teste.sh
 src/out
-graficos_tabelas/*.ipynb
-graficos_tabelas/.ipynb_checkpoints
+historical-results/*.ipynb
+historical-results/.ipynb_checkpoints

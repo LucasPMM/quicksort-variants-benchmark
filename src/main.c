@@ -1,10 +1,9 @@
-#include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
-#include "includes/core.h"
 
-int main(int argc, char const *argv[]){
-    srand(time(NULL));
-	initSort(argc, argv);
-	return 0; 
+#include "application.h"
+
+int main(int argc, char *argv[]) {
+    srand((unsigned int)time(NULL));
+    return run_application(argc, argv);
 }
