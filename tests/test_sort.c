@@ -3,7 +3,9 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "partition.h"
 #include "quicksort.h"
+#include "stack.h"
 
 static int compare_ints(const void *left, const void *right) {
     int a = *(const int *)left;
@@ -18,15 +20,95 @@ static int check_case(const char *variant, const int *input, int length) {
     memcpy(expected, input, (size_t)length * sizeof *expected);
     qsort(expected, (size_t)length, sizeof *expected, compare_ints);
 
-    long movements = 0;
-    long comparisons = sort_variant(actual, length, variant, &movements);
+    int64_t movements = 0;
+    int64_t comparisons = sort_variant(actual, length, variant, &movements);
     return comparisons >= 0 && movements >= 0 &&
            memcmp(actual, expected, (size_t)length * sizeof *actual) == 0;
+}
+
+static int check_large_case(const char *variant, int length, int pattern) {
+    int *actual = malloc((size_t)length * sizeof *actual);
+    int *expected = malloc((size_t)length * sizeof *expected);
+    if (actual == NULL || expected == NULL) {
+        free(actual);
+        free(expected);
+        return 0;
+    }
+    unsigned int state = 0x12345678U;
+    for (int i = 0; i < length; ++i) {
+        if (pattern == 0) {
+            actual[i] = i;
+        } else if (pattern == 1) {
+            actual[i] = length - i;
+        } else if (pattern == 2) {
+            actual[i] = (i * 37) % 101 - 50;
+        } else {
+            state = state * 1664525U + 1013904223U;
+            actual[i] = (int)(state % 2001U) - 1000;
+        }
+        expected[i] = actual[i];
+    }
+    qsort(expected, (size_t)length, sizeof *expected, compare_ints);
+    int64_t movements = 0;
+    int64_t comparisons = sort_variant(actual, length, variant, &movements);
+    int passed = comparisons >= 0 && movements >= 0 &&
+                 memcmp(actual, expected, (size_t)length * sizeof *actual) == 0;
+    free(actual);
+    free(expected);
+    return passed;
+}
+
+static int check_pivot_selection(void) {
+    const int permutations[6][3] = {
+        {1, 2, 3}, {1, 3, 2}, {2, 1, 3},
+        {2, 3, 1}, {3, 1, 2}, {3, 2, 1},
+    };
+    for (int i = 0; i < 6; ++i) {
+        if (select_pivot(permutations[i], 0, 2, PIVOT_MEDIAN_OF_THREE) != 2) {
+            return 0;
+        }
+    }
+    int values[] = {99, 9, 1, 5, -99};
+    return select_pivot(values, 1, 3, PIVOT_FIRST) == 9 &&
+           select_pivot(values, 1, 3, PIVOT_MIDDLE) == 1 &&
+           select_pivot(values, 1, 3, PIVOT_MEDIAN_OF_THREE) == 5;
+}
+
+static int check_stack(void) {
+    RangeStack stack;
+    if (!stack_init(&stack)) {
+        return 0;
+    }
+    SortRange first = {.left = 1, .right = 5};
+    SortRange second = {.left = 10, .right = 20};
+    int passed = stack_is_empty(&stack) && stack_size(&stack) == 0 &&
+                 stack_push(&stack, first) && stack_push(&stack, second) &&
+                 !stack_is_empty(&stack) && stack_size(&stack) == 2;
+    SortRange actual = {.left = -1, .right = -1};
+    if (passed) {
+        stack_pop(&stack, &actual);
+        passed = actual.left == second.left && actual.right == second.right &&
+                 stack_size(&stack) == 1;
+        stack_pop(&stack, &actual);
+        passed &= actual.left == first.left && actual.right == first.right &&
+                  stack_is_empty(&stack) && stack_size(&stack) == 0;
+        stack_pop(&stack, &actual);
+        passed &= actual.left == first.left && actual.right == first.right;
+    }
+    stack_destroy(&stack);
+    return passed && stack.top == NULL && stack.bottom == NULL && stack.size == 0;
 }
 
 int main(void) {
     const char *const variants[] = {"QC", "QM3", "QPE", "QI1", "QI5", "QI10", "QNR"};
     const int extremes[] = {INT_MAX, 0, INT_MIN, 0, -1, INT_MAX, INT_MIN, 1};
+    const int cutoff_lengths[] = {9, 10, 11, 19, 20, 21, 99, 100, 101,
+                                  199, 200, 201, 999, 1000, 1001};
+
+    if (!check_pivot_selection() || !check_stack()) {
+        fputs("Pivot or stack test failed\n", stderr);
+        return 1;
+    }
 
     for (size_t v = 0; v < sizeof variants / sizeof variants[0]; ++v) {
         if (!check_case(variants[v], extremes, 8)) {
@@ -54,7 +136,29 @@ int main(void) {
                 }
             }
         }
+
+        for (size_t n = 0; n < sizeof cutoff_lengths / sizeof cutoff_lengths[0]; ++n) {
+            for (int pattern = 0; pattern < 4; ++pattern) {
+                if (!check_large_case(variants[v], cutoff_lengths[n], pattern)) {
+                    fprintf(stderr, "%s failed length %d, pattern %d\n", variants[v],
+                            cutoff_lengths[n], pattern);
+                    return 1;
+                }
+            }
+        }
     }
-    puts("Short-array exhaustive sorting tests passed");
+    if (!check_large_case("QPE", 10000, 0) || !check_large_case("QPE", 10000, 1)) {
+        fputs("First-pivot ordered-input stress failed\n", stderr);
+        return 1;
+    }
+    int64_t movements = 0;
+    if (sort_variant(NULL, 1, "QC", &movements) >= 0 ||
+        sort_variant(NULL, -1, "QC", &movements) >= 0 ||
+        sort_variant(NULL, 0, "unknown", &movements) != 0 ||
+        sort_variant(NULL, 1, "unknown", &movements) >= 0) {
+        fputs("Invalid sorting arguments were accepted\n", stderr);
+        return 1;
+    }
+    puts("Exhaustive and boundary sorting tests passed");
     return 0;
 }

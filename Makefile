@@ -18,7 +18,7 @@ COVERAGE_FLAGS := -g -O0 --coverage
 ANALYZER_FLAGS := -g -O0 -fanalyzer
 
 TARGET := sort
-SOURCES := src/main.c src/application.c src/input.c src/quicksort.c \
+SOURCES := src/main.c src/application.c src/cli.c src/input.c src/quicksort.c \
 	src/partition.c src/stack.c src/benchmark.c src/report.c
 HEADERS := $(wildcard include/*.h)
 RELEASE_DIR := build/release
@@ -36,8 +36,17 @@ COVERAGE_SORT_TEST_OBJECTS := $(COVERAGE_DIR)/quicksort.o \
 SORT_TEST := build/tests/sort-tests
 SANITIZER_SORT_TEST := $(SANITIZER_DIR)/sort-tests
 COVERAGE_SORT_TEST := $(COVERAGE_DIR)/sort-tests
+BENCHMARK_TEST := build/tests/benchmark-tests
+SANITIZER_BENCHMARK_TEST := $(SANITIZER_DIR)/benchmark-tests
+COVERAGE_BENCHMARK_TEST := $(COVERAGE_DIR)/benchmark-tests
+BENCHMARK_TEST_OBJECTS := $(RELEASE_DIR)/benchmark.o $(RELEASE_DIR)/input.o \
+	$(SORT_TEST_OBJECTS)
+SANITIZER_BENCHMARK_TEST_OBJECTS := $(SANITIZER_DIR)/benchmark.o \
+	$(SANITIZER_DIR)/input.o $(SANITIZER_SORT_TEST_OBJECTS)
+COVERAGE_BENCHMARK_TEST_OBJECTS := $(COVERAGE_DIR)/benchmark.o \
+	$(COVERAGE_DIR)/input.o $(COVERAGE_SORT_TEST_OBJECTS)
 ANALYZER_TARGET := build/analyzer/sort
-FORMAT_SOURCES := $(SOURCES) $(HEADERS) tests/test_sort.c
+FORMAT_SOURCES := $(SOURCES) $(HEADERS) tests/test_sort.c tests/test_benchmark.c
 
 .PHONY: all test sanitize coverage analyze format check-format clean
 
@@ -82,22 +91,44 @@ $(COVERAGE_SORT_TEST): tests/test_sort.c $(COVERAGE_SORT_TEST_OBJECTS)
 	$(COVERAGE_CC) $(CPPFLAGS) -Iinclude $(STANDARD_FLAGS) $(WARNING_FLAGS) \
 		$(COVERAGE_FLAGS) $^ $(LDFLAGS) $(LDLIBS) -o $@
 
+$(BENCHMARK_TEST): tests/test_benchmark.c $(BENCHMARK_TEST_OBJECTS)
+	@mkdir -p $(@D)
+	$(CC) $(CPPFLAGS) -Iinclude $(STANDARD_FLAGS) $(WARNING_FLAGS) \
+		$(CFLAGS) $^ $(LDFLAGS) $(LDLIBS) -o $@
+
+$(SANITIZER_BENCHMARK_TEST): tests/test_benchmark.c \
+	$(SANITIZER_BENCHMARK_TEST_OBJECTS)
+	@mkdir -p $(@D)
+	$(CC) $(CPPFLAGS) -Iinclude $(STANDARD_FLAGS) $(WARNING_FLAGS) \
+		$(SANITIZER_FLAGS) $^ $(LDFLAGS) $(LDLIBS) -o $@
+
+$(COVERAGE_BENCHMARK_TEST): tests/test_benchmark.c \
+	$(COVERAGE_BENCHMARK_TEST_OBJECTS)
+	@mkdir -p $(@D)
+	$(COVERAGE_CC) $(CPPFLAGS) -Iinclude $(STANDARD_FLAGS) $(WARNING_FLAGS) \
+		$(COVERAGE_FLAGS) $^ $(LDFLAGS) $(LDLIBS) -o $@
+
 $(ANALYZER_TARGET): $(SOURCES) $(HEADERS)
 	@mkdir -p $(@D)
 	$(ANALYZER_CC) $(CPPFLAGS) -Iinclude $(STANDARD_FLAGS) $(WARNING_FLAGS) \
 		$(ANALYZER_FLAGS) $(SOURCES) $(LDFLAGS) $(LDLIBS) -o $@
 
 # The broader boundary, statistics, and integration suite arrives in phase 4.
-test: $(TARGET) $(SORT_TEST)
+test: $(TARGET) $(SORT_TEST) $(BENCHMARK_TEST)
 	$(SORT_TEST)
+	$(BENCHMARK_TEST)
 	sh tests/run_smoke.sh ./$(TARGET)
 
-sanitize: $(SANITIZER_DIR)/$(TARGET) $(SANITIZER_SORT_TEST)
+sanitize: $(SANITIZER_DIR)/$(TARGET) $(SANITIZER_SORT_TEST) \
+	$(SANITIZER_BENCHMARK_TEST)
 	ASAN_OPTIONS=$(ASAN_OPTIONS) $(SANITIZER_SORT_TEST)
+	ASAN_OPTIONS=$(ASAN_OPTIONS) $(SANITIZER_BENCHMARK_TEST)
 	ASAN_OPTIONS=$(ASAN_OPTIONS) sh tests/run_smoke.sh ./$(SANITIZER_DIR)/$(TARGET)
 
-coverage: $(COVERAGE_DIR)/$(TARGET) $(COVERAGE_SORT_TEST)
+coverage: $(COVERAGE_DIR)/$(TARGET) $(COVERAGE_SORT_TEST) \
+	$(COVERAGE_BENCHMARK_TEST)
 	$(COVERAGE_SORT_TEST)
+	$(COVERAGE_BENCHMARK_TEST)
 	sh tests/run_smoke.sh ./$(COVERAGE_DIR)/$(TARGET)
 	@mkdir -p $(COVERAGE_DIR)/reports
 	$(GCOV) -b -c $(COVERAGE_DIR)/*.gcda > $(COVERAGE_DIR)/summary.txt

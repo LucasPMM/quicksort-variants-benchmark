@@ -1,16 +1,20 @@
+#include <inttypes.h>
 #include <stdio.h>
 
 #include "report.h"
 
-void print_result(const char *variant, const char *order, int length,
-                  const BenchmarkResult *result) {
-    printf("%s %s %d %.0f %ld %d\n", variant, order, length,
-           result->mean_comparisons, result->mean_movements, result->median_time_us);
+int print_result(const char *variant, const char *order, int length,
+                 const BenchmarkResult *result) {
+    return printf("%s %s %d %.0f %" PRId64 " %" PRIu64 "\n", variant, order, length,
+                  result->mean_comparisons, result->mean_movements,
+                  result->median_time_us) >= 0;
 }
 
-void print_array(const int *values, int length) {
+int print_array(const int *values, int length) {
     for (int i = 0; i < length; ++i) {
-        printf("%d ", values[i]);
+        if (printf("%d ", values[i]) < 0) {
+            return 0;
+        }
     }
-    putchar('\n');
+    return putchar('\n') != EOF;
 }
