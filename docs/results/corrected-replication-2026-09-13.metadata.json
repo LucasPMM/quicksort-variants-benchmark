@@ -1,9 +1,8 @@
 {
-  "source": "corrected implementation, bounded sample",
-  "started_utc": "2026-09-13T14:41:38.528641+00:00",
-  "finished_utc": "2026-09-13T14:42:35.270818+00:00",
-  "git_commit": "88948f0ca7f6e431512e4ae85a22a39a26b609cc",
-  "published_equivalent_commit": "63a1b2b87c1f0059ab2e1e144ac18823487195f4",
+  "source": "corrected implementation, independent same-host replication",
+  "started_utc": "2026-09-13T16:04:58.885355+00:00",
+  "finished_utc": "2026-09-13T16:05:55.059889+00:00",
+  "git_commit": "bfd44bdede50a4a1abc0e02575785e2619102522",
   "host_os": "Linux-7.0.0-30-generic-x86_64-with-glibc2.39",
   "cpu_model": "AMD Ryzen 5 3600 6-Core Processor",
   "compiler": "gcc (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0",

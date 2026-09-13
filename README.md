@@ -155,6 +155,17 @@ on random arrays. The repaired median-of-three and iterative implementations can
 change comparison and movement counts; those differences cannot be assigned solely to a
 single fix because the old random seed was not recorded.
 
+An independent [same-host replication](docs/results/corrected-replication-2026-09-13.csv)
+using the [recorded conditions](docs/results/corrected-replication-2026-09-13.metadata.json)
+repeated all 59 corrected cases. Every comparison and movement mean matched the first
+sample exactly; median times varied, including on this same machine. The
+[legacy-to-current comparison](docs/legacy-comparison.md) checks the report's contract,
+all shared dataset cases, ordered-input operation counts, and claims that changed after
+the fixes. It finds exact ordered comparison counts for `QC`, `QM3`, and the sampled `QPE`
+cases; the small hybrid and iterative differences correspond to corrected partition
+boundaries and final-element traversal. The old report's assumption of unique random
+identifiers does not match its generator, which remains unchanged here.
+
 ## Reproduce the checks and figures
 
 ```sh
